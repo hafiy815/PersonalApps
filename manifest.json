@@ -1,0 +1,21 @@
+{
+  "name": "MyFinance",
+  "short_name": "MyFinance",
+  "description": "Premium Personal Finance Manager",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "productivity"],
+  "lang": "en-US",
+  "dir": "ltr"
+}
