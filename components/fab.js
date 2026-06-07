@@ -42,6 +42,19 @@ window.MF.FAB = (() => {
     _btn.classList.remove('hidden');
     _btn.setAttribute('aria-label', action.label);
     _btn.innerHTML = action.icon === 'upload' ? UPLOAD_ICON : PLUS_ICON;
+
+    // Commitments page: FAB bottom-right (action buttons are on left/center)
+    // All other pages: FAB bottom-left (avoids right-side delete buttons)
+    const container = document.getElementById('fab-container');
+    if (container) {
+      if (page === 'commitments') {
+        container.style.right = 'var(--space-5)';
+        container.style.left  = 'auto';
+      } else {
+        container.style.left  = 'var(--space-5)';
+        container.style.right = 'auto';
+      }
+    }
   }
 
   return { init, update };
