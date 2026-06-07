@@ -48,11 +48,11 @@ window.MF.FAB = (() => {
     const container = document.getElementById('fab-container');
     if (container) {
       if (page === 'commitments') {
-        container.style.right = 'var(--space-5)';
-        container.style.left  = 'auto';
-      } else {
         container.style.left  = 'var(--space-5)';
         container.style.right = 'auto';
+      } else {
+        container.style.right = 'var(--space-5)';
+        container.style.left  = 'auto';
       }
     }
   }
