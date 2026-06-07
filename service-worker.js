@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myfinance-v1';
+const CACHE_NAME = 'myfinance-v3';
 const STATIC_ASSETS = [
   './index.html',
   './css/tokens.css',
@@ -18,6 +18,8 @@ const STATIC_ASSETS = [
   './pages/expenses.js',
   './pages/receipts.js',
   './pages/reports.js',
+  './pages/debt.js',
+  './pages/budget.js',
   './manifest.json',
   './icons/icon.svg'
 ];
