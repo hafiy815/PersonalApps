@@ -6,7 +6,7 @@ window.MF.Pages.expenses = (() => {
   let _items = [], _filter = 'all', _search = '', _month = '', _chart1 = null, _chart2 = null;
 
   function render(container) {
-    _month = utils.monthISO(0);
+    _month = '';
     container.innerHTML = `
       <div class="page">
         <div class="section-header mb-6">
@@ -87,21 +87,22 @@ window.MF.Pages.expenses = (() => {
   }
 
   function renderStats() {
-    const mItems = monthItems();
-    const total  = utils.sumAmount(mItems);
-    const byDay  = mItems.length > 0 ? total / new Date().getDate() : 0;
-    const topCat = getTopCategory(mItems);
+    const mItems  = monthItems();
+    const total   = utils.sumAmount(mItems);
+    const hasMonth = !!_month;
+    const byDay   = hasMonth && mItems.length > 0 ? total / new Date().getDate() : null;
+    const topCat  = getTopCategory(mItems);
 
     document.getElementById('exp-stats').innerHTML = `
       <div class="stat-card">
-        <div class="stat-label">Month Total</div>
+        <div class="stat-label">${hasMonth ? 'Month Total' : 'Total Expenses'}</div>
         <div class="stat-value mt-4">${utils.formatCurrency(total)}</div>
-        <div class="text-xs text-secondary mt-4">${mItems.length} transactions</div>
+        <div class="text-xs text-secondary mt-4">${mItems.length} transaction${mItems.length !== 1 ? 's' : ''}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Daily Average</div>
-        <div class="stat-value mt-4">${utils.formatCurrency(byDay)}</div>
-        <div class="text-xs text-secondary mt-4">per day this month</div>
+        <div class="stat-label">${hasMonth ? 'Daily Average' : 'This Month'}</div>
+        <div class="stat-value mt-4">${hasMonth ? utils.formatCurrency(byDay) : utils.formatCurrency(utils.sumAmount(_items.filter(e => (e.date||'').startsWith(utils.monthISO(0)))))}</div>
+        <div class="text-xs text-secondary mt-4">${hasMonth ? 'per day this month' : 'current month spending'}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Top Category</div>
