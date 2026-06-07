@@ -32,6 +32,12 @@
       document.documentElement.setAttribute('data-theme', theme);
       if (!saved) localStorage.setItem('mf_theme', theme);
     })();
+    // Auto-reload when a new service worker activates so the page always runs fresh JS
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data?.type === 'SW_UPDATED') window.location.reload();
+      });
+    }
   </script>
 </head>
 <body>
