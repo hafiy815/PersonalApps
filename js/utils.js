@@ -13,6 +13,7 @@ window.MF.utils = (() => {
     { id: 'education',     label: 'Education',     emoji: '📚', color: '#6366f1' },
     { id: 'shopping',      label: 'Shopping',      emoji: '🛍️', color: '#14b8a6' },
     { id: 'savings',       label: 'Savings',       emoji: '💰', color: '#84cc16' },
+    { id: 'sport',         label: 'Sport',         emoji: '⚽', color: '#0ea5e9' },
     { id: 'other',         label: 'Other',         emoji: '📦', color: '#6b7280' }
   ];
 
