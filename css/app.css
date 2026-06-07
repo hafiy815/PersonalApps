@@ -287,8 +287,8 @@ body {
 }
 .bottom-nav-item.active { color: var(--color-primary); }
 .bottom-nav-item.active::before { opacity: 1; }
-.bottom-nav-icon { width: 20px; height: 20px; }
-.bottom-nav-label { font-size: 9px; font-weight: var(--font-medium); white-space: nowrap; }
+.bottom-nav-icon { width: 19px; height: 19px; }
+.bottom-nav-label { font-size: 8px; font-weight: var(--font-medium); white-space: nowrap; }
 
 /* ─── Cards ─── */
 .card {

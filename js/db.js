@@ -2,7 +2,7 @@ window.MF = window.MF || {};
 
 window.MF.DB = (() => {
   const DB_NAME = 'myfinance_db';
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;
   let _db = null;
 
   function open() {
@@ -42,6 +42,11 @@ window.MF.DB = (() => {
           ds.createIndex('lender', 'lender');
           ds.createIndex('settled', 'settled');
           ds.createIndex('date', 'date');
+        }
+
+        // v3: Budget planner — keyPath is 'category' (one budget limit per category)
+        if (!db.objectStoreNames.contains('budgets')) {
+          db.createObjectStore('budgets', { keyPath: 'category' });
         }
       };
 

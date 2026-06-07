@@ -12,6 +12,7 @@
     Router.register('receipts',    c => Pages.receipts.render(c));
     Router.register('reports',     c => Pages.reports.render(c));
     Router.register('debt',        c => Pages.debt.render(c));
+    Router.register('budget',      c => Pages.budget.render(c));
 
     FAB.init();
     Router.init();

@@ -8,7 +8,8 @@ window.MF.Router = (() => {
     expenses:    'Expenses',
     receipts:    'Receipts',
     reports:     'Reports',
-    debt:        'Debt Tracker'
+    debt:        'Debt Tracker',
+    budget:      'Budget Planner'
   };
 
   function register(page, handler) {
