@@ -58,6 +58,17 @@ window.MF.Modal = (() => {
 
     if (_stack.length === 0) document.removeEventListener('keydown', onKeyDown);
     onClose?.();
+
+    // Reset iOS Safari viewport zoom after keyboard dismissal
+    _resetZoom();
+  }
+
+  function _resetZoom() {
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (!vp) return;
+    const orig = vp.getAttribute('content');
+    vp.setAttribute('content', orig + ', maximum-scale=1');
+    setTimeout(() => vp.setAttribute('content', orig), 300);
   }
 
   function closeAll() {
@@ -72,6 +83,9 @@ window.MF.Modal = (() => {
 
   function confirm({ title = 'Confirm', message, confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = {}) {
     return new Promise(resolve => {
+      let _resolved = false;
+      const done = (val) => { if (!_resolved) { _resolved = true; resolve(val); } };
+
       const { id, modal } = open({
         title: '',
         body: `
@@ -87,11 +101,11 @@ window.MF.Modal = (() => {
         footer: `
           <button class="btn btn-secondary" data-action="cancel">${cancelText}</button>
           <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-action="confirm">${confirmText}</button>`,
-        onClose: () => resolve(false)
+        onClose: () => done(false)
       });
 
-      modal.querySelector('[data-action="cancel"]')?.addEventListener('click', () => { close(id); resolve(false); });
-      modal.querySelector('[data-action="confirm"]')?.addEventListener('click', () => { close(id); resolve(true); });
+      modal.querySelector('[data-action="cancel"]')?.addEventListener('click', () => { close(id); done(false); });
+      modal.querySelector('[data-action="confirm"]')?.addEventListener('click', () => { done(true); close(id); });
     });
   }
 
