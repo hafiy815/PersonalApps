@@ -167,6 +167,13 @@
   right: var(--space-5);
   z-index: var(--z-sticky);
 }
+/* On mobile, move FAB to the LEFT so it never overlaps right-side action buttons */
+@media (max-width: 768px) {
+  .fab-container {
+    right: auto;
+    left: var(--space-5);
+  }
+}
 @media (min-width: 769px) {
   .fab-container { bottom: var(--space-6); }
 }
