@@ -21,16 +21,18 @@ window.MF.Pages.receipts = (() => {
         </div>
 
         <div class="card mb-4">
-          <div style="display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap">
-            <div class="search-bar" style="flex:1;min-width:180px">
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <div class="search-bar">
               <svg class="search-icon" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M15 15l-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               <input class="search-input" placeholder="Search receipts…" id="rec-search" type="search">
             </div>
-            <input type="month" class="form-input" id="rec-month" style="width:auto" placeholder="Filter by month">
-            <select class="form-select" id="rec-cat" style="width:auto;min-width:140px">
-              <option value="">All categories</option>
-              ${utils.CATEGORIES.map(c => `<option value="${c.id}">${c.emoji} ${c.label}</option>`).join('')}
-            </select>
+            <div style="display:flex;gap:var(--space-3)">
+              <input type="month" class="form-input" id="rec-month" style="flex:1" placeholder="All months">
+              <select class="form-select" id="rec-cat" style="flex:1">
+                <option value="">All categories</option>
+                ${utils.CATEGORIES.map(c => `<option value="${c.id}">${c.emoji} ${c.label}</option>`).join('')}
+              </select>
+            </div>
           </div>
         </div>
 
