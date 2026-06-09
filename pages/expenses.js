@@ -209,6 +209,10 @@ window.MF.Pages.expenses = (() => {
       return;
     }
 
+    // Pre-compute daily totals
+    const dailyTotals = {};
+    items.forEach(e => { dailyTotals[e.date] = (dailyTotals[e.date] || 0) + (parseFloat(e.amount) || 0); });
+
     let currentDate = '';
     const rows = items.map(e => {
       const cat = utils.getCategory(e.category);
@@ -216,7 +220,10 @@ window.MF.Pages.expenses = (() => {
       const dateLabel = utils.formatDate(e.date, 'medium');
       if (dateLabel !== currentDate) {
         currentDate = dateLabel;
-        header = `<div style="font-size:var(--text-xs);font-weight:var(--font-semibold);color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em;padding:var(--space-3) 0 var(--space-2)">${dateLabel}</div>`;
+        header = `<div style="display:flex;justify-content:space-between;align-items:center;padding:var(--space-3) 0 var(--space-2)">
+          <span style="font-size:var(--text-xs);font-weight:var(--font-semibold);color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.06em">${dateLabel}</span>
+          <span style="font-size:var(--text-xs);font-weight:var(--font-semibold);color:var(--color-error)">-${utils.formatCurrency(dailyTotals[e.date])}</span>
+        </div>`;
       }
       return header + `<div class="list-item">
         <div class="list-item-icon" style="background:${cat.color}22;font-size:20px">${cat.emoji}</div>
