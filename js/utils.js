@@ -66,7 +66,8 @@ window.MF.utils = (() => {
   function monthISO(offsetMonths = 0) {
     const d = new Date();
     d.setMonth(d.getMonth() + offsetMonths, 1);
-    return d.toISOString().slice(0, 7);
+    // Use local date components — toISOString() is UTC and returns wrong month for UTC+8 timezones
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
   function isOverdue(dateStr) {

@@ -74,13 +74,13 @@ window.MF.Pages.commitments = (() => {
     const currentMonth = utils.monthISO(0);
     const lastReset    = await DB.getSetting('commit_reset_month');
 
-    // Detect stale paid items when running new code for the first time (lastReset was never set)
-    const stalePaidMonth = !lastReset
-      ? (_items.find(c => c.paidMonth && c.paidMonth !== currentMonth)?.paidMonth || null)
-      : null;
+    // Also catch stale items (paidMonth from a past month) regardless of lastReset value
+    // — handles case where lastReset was saved without actually running the reset
+    const stalePaidMonth = _items.find(c => c.paidMonth && c.paidMonth !== currentMonth)?.paidMonth || null;
 
-    const needsReset = (lastReset && lastReset !== currentMonth) || !!stalePaidMonth;
-    const prevMonth  = lastReset || stalePaidMonth || utils.monthISO(-1);
+    const needsReset = (lastReset !== currentMonth) || !!stalePaidMonth;
+    const prevMonth  = (lastReset && lastReset !== currentMonth) ? lastReset
+      : (stalePaidMonth || utils.monthISO(-1));
 
     if (needsReset) {
       await Promise.all(_items.map(c => {
