@@ -53,6 +53,16 @@ window.MF.Pages.commitments = (() => {
 
   async function loadData() {
     _items = await DB.getAll('commitments');
+
+    // Auto-reset: recurring commitments paid in a previous month go back to Unpaid
+    const currentMonth = utils.monthISO(0);
+    const toReset = _items.filter(c => c.recurring && c.paid && c.paidMonth && c.paidMonth !== currentMonth);
+    if (toReset.length) {
+      await Promise.all(toReset.map(c => DB.update('commitments', { ...c, paid: false, paidMonth: null })));
+      _items = await DB.getAll('commitments');
+      Toast.info?.(`${toReset.length} commitment${toReset.length > 1 ? 's' : ''} reset for new month`);
+    }
+
     renderStats();
     renderList();
   }
@@ -208,8 +218,9 @@ window.MF.Pages.commitments = (() => {
   async function togglePaid(id) {
     const item = _items.find(c => c.id === id);
     if (!item) return;
-    await DB.update('commitments', { ...item, paid: !item.paid });
-    Toast.success(item.paid ? 'Marked as unpaid' : 'Marked as paid!');
+    const nowPaid = !item.paid;
+    await DB.update('commitments', { ...item, paid: nowPaid, paidMonth: nowPaid ? utils.monthISO(0) : null });
+    Toast.success(nowPaid ? 'Marked as paid!' : 'Marked as unpaid');
     await loadData();
   }
 
