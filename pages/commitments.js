@@ -343,11 +343,29 @@ window.MF.Pages.commitments = (() => {
 
   /* ── Toggle paid (current month only) ── */
   async function togglePaid(id) {
-    const item   = _items.find(c => c.id === id);
+    const item = _items.find(c => c.id === id);
     if (!item) return;
     const nowPaid = !item.paid;
-    await DB.update('commitments', { ...item, paid: nowPaid, paidMonth: nowPaid ? utils.monthISO(0) : null });
-    Toast.success(nowPaid ? 'Marked as paid!' : 'Marked as unpaid');
+
+    if (nowPaid) {
+      // Add expense automatically
+      const expenseId = await DB.add('expenses', {
+        date: utils.todayISO(),
+        amount: item.amount,
+        category: item.category || 'other',
+        description: item.title,
+      });
+      await DB.update('commitments', { ...item, paid: true, paidMonth: utils.monthISO(0), autoExpenseId: expenseId });
+      Toast.success('Marked as paid — expense added automatically');
+    } else {
+      // Remove the auto-inserted expense if it exists
+      if (item.autoExpenseId) {
+        await DB.remove('expenses', item.autoExpenseId).catch(() => {});
+      }
+      await DB.update('commitments', { ...item, paid: false, paidMonth: null, autoExpenseId: null });
+      Toast.success('Marked as unpaid — expense removed');
+    }
+
     await loadData();
   }
 
