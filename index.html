@@ -38,6 +38,24 @@
         if (e.data?.type === 'SW_UPDATED') window.location.reload();
       });
     }
+    // Version-check fallback: fetch version.json bypassing cache on every open.
+    // If version changed, wipe all caches and hard-reload — works even on iOS PWA
+    // with a stuck old service worker.
+    fetch('./version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(function(d) {
+        var stored = localStorage.getItem('mf_app_version');
+        if (stored && stored !== String(d.v)) {
+          localStorage.setItem('mf_app_version', String(d.v));
+          ('caches' in window
+            ? caches.keys().then(function(ks) { return Promise.all(ks.map(function(k) { return caches.delete(k); })); })
+            : Promise.resolve()
+          ).then(function() { window.location.reload(true); });
+        } else {
+          localStorage.setItem('mf_app_version', String(d.v));
+        }
+      }).catch(function() {});
+
   </script>
 </head>
 <body>

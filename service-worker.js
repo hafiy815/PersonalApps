@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myfinance-v9';
+const CACHE_NAME = 'myfinance-v10';
 const STATIC_ASSETS = [
   './index.html',
   './css/tokens.css',
