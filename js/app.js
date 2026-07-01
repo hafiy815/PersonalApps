@@ -111,12 +111,25 @@
   }
 
   function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-          .catch(err => console.warn('SW registration failed:', err));
-      });
-    }
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').then(reg => {
+        // Force iOS PWA to check for a new SW on every page load
+        reg.update();
+
+        // If a new SW is already waiting (e.g. was installed while app was open), activate it now
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+        reg.addEventListener('updatefound', () => {
+          const sw = reg.installing;
+          sw.addEventListener('statechange', () => {
+            if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+              sw.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      }).catch(err => console.warn('SW registration failed:', err));
+    });
   }
 
   if (document.readyState === 'loading') {

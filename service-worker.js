@@ -1,4 +1,4 @@
-const CACHE_NAME = 'myfinance-v7';
+const CACHE_NAME = 'myfinance-v8';
 const STATIC_ASSETS = [
   './index.html',
   './css/tokens.css',
@@ -27,6 +27,11 @@ const CDN_ASSETS = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap'
 ];
+
+/* ── Allow page to force-activate a waiting SW (iOS PWA update fix) ── */
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
 /* ── Install: pre-cache everything ── */
 self.addEventListener('install', event => {
