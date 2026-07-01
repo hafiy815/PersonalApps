@@ -6,7 +6,7 @@ window.MF.Pages.expenses = (() => {
   let _items = [], _filter = 'all', _search = '', _month = '', _chart1 = null, _chart2 = null;
 
   function render(container) {
-    _month = '';
+    _month = utils.monthISO(0);
     container.innerHTML = `
       <div class="page">
         <div class="section-header mb-6">
@@ -43,7 +43,7 @@ window.MF.Pages.expenses = (() => {
               <svg class="search-icon" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M15 15l-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               <input class="search-input" placeholder="Search expenses…" id="exp-search" type="search">
             </div>
-            <input type="month" class="form-input" id="exp-month" value="${_month}" style="width:auto">
+            <input type="month" class="form-input" id="exp-month" value="${utils.monthISO(0)}" style="width:auto">
             <select class="form-select" id="exp-cat-filter" style="width:auto;min-width:140px">
               <option value="">All categories</option>
               ${utils.CATEGORIES.map(c => `<option value="${c.id}">${c.emoji} ${c.label}</option>`).join('')}

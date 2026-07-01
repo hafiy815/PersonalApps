@@ -3,40 +3,56 @@ window.MF.Pages = window.MF.Pages || {};
 
 window.MF.Pages.commitments = (() => {
   const { DB, utils, Modal, Toast } = window.MF;
-  let _items = [], _filter = 'all', _search = '', _sort = 'dueDate';
+  let _items = [], _filter = 'all', _search = '', _sort = 'dueDate', _viewMonth = '';
 
+  /* ── Render shell ── */
   function render(container) {
+    _viewMonth = utils.monthISO(0);
+
     container.innerHTML = `
       <div class="page">
-        <div class="section-header mb-6">
+        <div class="section-header mb-4">
           <div>
             <h2 class="section-title">Commitments</h2>
             <p class="card-subtitle">Track your recurring bills and obligations</p>
           </div>
-          <button class="btn btn-primary" onclick="window.MF.Pages.commitments.openForm()">
+          <button class="btn btn-primary" id="commit-add-btn" onclick="window.MF.Pages.commitments.openForm()">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             Add Commitment
           </button>
         </div>
 
+        <!-- Month navigator -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:var(--space-2);margin-bottom:var(--space-5)">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="window.MF.Pages.commitments.prevMonth()" aria-label="Previous month">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <span id="commit-month-label" style="font-weight:var(--font-semibold);font-size:var(--text-sm);min-width:130px;text-align:center;color:var(--color-text-primary)"></span>
+          <button class="btn btn-ghost btn-sm btn-icon" id="commit-next-btn" onclick="window.MF.Pages.commitments.nextMonth()" aria-label="Next month">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
         <div class="grid-3 mb-6" id="commit-stats"></div>
 
-        <div class="card mb-4">
-          <div style="display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap">
-            <div class="search-bar" style="flex:1;min-width:200px">
+        <div class="card mb-4" id="commit-filter-bar">
+          <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+            <div class="search-bar">
               <svg class="search-icon" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M15 15l-3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               <input class="search-input" placeholder="Search commitments…" id="commit-search" type="search">
             </div>
-            <div class="filters-bar">
-              ${['all','unpaid','paid','overdue','recurring'].map(f =>
-                `<button class="filter-chip ${_filter===f?'active':''}" data-filter="${f}" onclick="window.MF.Pages.commitments.setFilter('${f}')">${f.charAt(0).toUpperCase()+f.slice(1)}</button>`
-              ).join('')}
+            <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center">
+              <div class="filters-bar" style="flex:1">
+                ${['all','unpaid','paid','overdue','recurring'].map(f =>
+                  `<button class="filter-chip ${_filter===f?'active':''}" data-filter="${f}" onclick="window.MF.Pages.commitments.setFilter('${f}')">${f.charAt(0).toUpperCase()+f.slice(1)}</button>`
+                ).join('')}
+              </div>
+              <select class="form-select" style="width:auto;min-width:130px" id="commit-sort" onchange="window.MF.Pages.commitments.setSort(this.value)">
+                <option value="dueDate" ${_sort==='dueDate'?'selected':''}>Sort: Due Date</option>
+                <option value="amount"  ${_sort==='amount' ?'selected':''}>Sort: Amount</option>
+                <option value="title"   ${_sort==='title'  ?'selected':''}>Sort: Name</option>
+              </select>
             </div>
-            <select class="form-select" style="width:auto;min-width:130px" id="commit-sort" onchange="window.MF.Pages.commitments.setSort(this.value)">
-              <option value="dueDate" ${_sort==='dueDate'?'selected':''}>Sort: Due Date</option>
-              <option value="amount" ${_sort==='amount'?'selected':''}>Sort: Amount</option>
-              <option value="title" ${_sort==='title'?'selected':''}>Sort: Name</option>
-            </select>
           </div>
         </div>
 
@@ -51,27 +67,90 @@ window.MF.Pages.commitments = (() => {
     loadData();
   }
 
+  /* ── Data + monthly reset ── */
   async function loadData() {
     _items = await DB.getAll('commitments');
 
-    // Auto-reset: recurring commitments paid in a previous month go back to Unpaid
     const currentMonth = utils.monthISO(0);
-    const toReset = _items.filter(c => c.recurring && c.paid && c.paidMonth && c.paidMonth !== currentMonth);
-    if (toReset.length) {
-      await Promise.all(toReset.map(c => DB.update('commitments', { ...c, paid: false, paidMonth: null })));
+    const lastReset    = await DB.getSetting('commit_reset_month');
+
+    if (lastReset && lastReset !== currentMonth) {
+      // New month — save history for every commitment then reset all paid statuses
+      await Promise.all(_items.map(c => {
+        const history = [...(c.history || [])];
+        if (!history.find(h => h.month === lastReset)) {
+          history.push({ month: lastReset, paid: !!c.paid });
+        }
+        return DB.update('commitments', { ...c, paid: false, paidMonth: null, history });
+      }));
+      await DB.setSetting('commit_reset_month', currentMonth);
       _items = await DB.getAll('commitments');
-      Toast.info?.(`${toReset.length} commitment${toReset.length > 1 ? 's' : ''} reset for new month`);
+      Toast.success('New month — all commitments reset ✓');
+    } else if (!lastReset) {
+      await DB.setSetting('commit_reset_month', currentMonth);
     }
 
+    updateMonthLabel();
     renderStats();
     renderList();
   }
 
+  /* ── Month navigation ── */
+  function updateMonthLabel() {
+    const [y, m] = _viewMonth.split('-');
+    const label  = new Date(+y, +m - 1, 1).toLocaleDateString('en-MY', { month: 'long', year: 'numeric' });
+    const el = document.getElementById('commit-month-label');
+    if (el) el.textContent = label;
+
+    const isCurrentMonth = _viewMonth === utils.monthISO(0);
+
+    // Hide Add button and filter bar in past-month history view
+    document.getElementById('commit-add-btn')?.style.setProperty('display', isCurrentMonth ? '' : 'none');
+    document.getElementById('commit-filter-bar')?.style.setProperty('display', isCurrentMonth ? '' : 'none');
+
+    // Disable next button if already on current month
+    const nextBtn = document.getElementById('commit-next-btn');
+    if (nextBtn) nextBtn.disabled = isCurrentMonth;
+  }
+
+  function prevMonth() {
+    const [y, m] = _viewMonth.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    _viewMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    updateMonthLabel();
+    renderStats();
+    renderList();
+  }
+
+  function nextMonth() {
+    const currentMonth = utils.monthISO(0);
+    if (_viewMonth >= currentMonth) return;
+    const [y, m] = _viewMonth.split('-').map(Number);
+    const d = new Date(y, m, 1);
+    _viewMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    updateMonthLabel();
+    renderStats();
+    renderList();
+  }
+
+  /* ── Stats ── */
+  function getViewItems() {
+    const isCurrentMonth = _viewMonth === utils.monthISO(0);
+    return _items.map(c => {
+      if (isCurrentMonth) return c;
+      // For past months, use historical paid status
+      const hist = (c.history || []).find(h => h.month === _viewMonth);
+      return { ...c, paid: hist ? hist.paid : false };
+    });
+  }
+
   function renderStats() {
-    const total  = utils.sumAmount(_items);
-    const paid   = utils.sumAmount(_items.filter(c => c.paid));
+    const items  = getViewItems();
+    const total  = utils.sumAmount(items);
+    const paid   = utils.sumAmount(items.filter(c => c.paid));
     const unpaid = total - paid;
     const pct    = total > 0 ? Math.round((paid / total) * 100) : 0;
+    const isCurrentMonth = _viewMonth === utils.monthISO(0);
 
     document.getElementById('commit-stats').innerHTML = `
       <div class="card">
@@ -83,39 +162,61 @@ window.MF.Pages.commitments = (() => {
       <div class="card">
         <div class="stat-label">Paid</div>
         <div class="stat-value mt-4 text-success">${utils.formatCurrency(paid)}</div>
-        <div class="text-xs text-secondary mt-4">${_items.filter(c=>c.paid).length} of ${_items.length} commitments</div>
+        <div class="text-xs text-secondary mt-4">${items.filter(c=>c.paid).length} of ${items.length} commitments</div>
       </div>
       <div class="card">
-        <div class="stat-label">Outstanding</div>
+        <div class="stat-label">${isCurrentMonth ? 'Outstanding' : 'Unpaid'}</div>
         <div class="stat-value mt-4 text-error">${utils.formatCurrency(unpaid)}</div>
-        <div class="text-xs text-secondary mt-4">${_items.filter(c=>!c.paid).length} unpaid • ${_items.filter(c=>!c.paid&&utils.isOverdue(c.dueDate)).length} overdue</div>
+        <div class="text-xs text-secondary mt-4">${items.filter(c=>!c.paid).length} unpaid${isCurrentMonth ? ' • '+items.filter(c=>!c.paid&&utils.isOverdue(c.dueDate)).length+' overdue' : ''}</div>
       </div>`;
   }
 
+  /* ── List ── */
   function renderList() {
-    let items = [..._items];
+    const isCurrentMonth = _viewMonth === utils.monthISO(0);
+    let items = getViewItems();
 
-    if (_search) items = items.filter(c => c.title.toLowerCase().includes(_search) || (c.notes||'').toLowerCase().includes(_search) || (c.category||'').includes(_search));
-    if (_filter === 'paid')      items = items.filter(c => c.paid);
-    if (_filter === 'unpaid')    items = items.filter(c => !c.paid);
-    if (_filter === 'overdue')   items = items.filter(c => !c.paid && utils.isOverdue(c.dueDate));
-    if (_filter === 'recurring') items = items.filter(c => c.recurring);
-
-    if (_sort === 'dueDate') items.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
-    if (_sort === 'amount')  items.sort((a,b) => b.amount - a.amount);
-    if (_sort === 'title')   items.sort((a,b) => a.title.localeCompare(b.title));
+    if (isCurrentMonth) {
+      if (_search) items = items.filter(c => c.title.toLowerCase().includes(_search) || (c.notes||'').toLowerCase().includes(_search));
+      if (_filter === 'paid')      items = items.filter(c => c.paid);
+      if (_filter === 'unpaid')    items = items.filter(c => !c.paid);
+      if (_filter === 'overdue')   items = items.filter(c => !c.paid && utils.isOverdue(c.dueDate));
+      if (_filter === 'recurring') items = items.filter(c => c.recurring);
+      if (_sort === 'dueDate') items.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate));
+      if (_sort === 'amount')  items.sort((a,b) => b.amount - a.amount);
+      if (_sort === 'title')   items.sort((a,b) => a.title.localeCompare(b.title));
+    } else {
+      items.sort((a,b) => a.title.localeCompare(b.title));
+    }
 
     const el = document.getElementById('commit-list');
     if (!el) return;
 
     if (!items.length) {
-      el.innerHTML = `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" width="32" height="32"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 12h8M8 8h8M8 16h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="empty-title">No commitments found</div><div class="empty-description">${_filter==='all'&&!_search ? 'Add your first commitment to start tracking your bills.' : 'Try adjusting your search or filter.'}</div>${_filter==='all'&&!_search ? '<button class="btn btn-primary" onclick="window.MF.Pages.commitments.openForm()">Add Commitment</button>' : ''}</div>`;
+      el.innerHTML = `<div class="empty-state">
+        <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" width="32" height="32"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 12h8M8 8h8M8 16h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        <div class="empty-title">No commitments found</div>
+        <div class="empty-description">${isCurrentMonth && _filter==='all'&&!_search ? 'Add your first commitment to start tracking.' : 'No data for this period.'}</div>
+        ${isCurrentMonth && _filter==='all'&&!_search ? '<button class="btn btn-primary" onclick="window.MF.Pages.commitments.openForm()">Add Commitment</button>' : ''}
+      </div>`;
+      return;
+    }
+
+    if (!isCurrentMonth) {
+      // Past month — read-only history view with banner
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);background:var(--color-primary-subtle);border-radius:var(--radius-md);margin-bottom:var(--space-4);font-size:var(--text-sm);color:var(--color-primary)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v4M8 10.5v.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          History view — read only
+        </div>
+        <div class="list">${items.map(c => commitmentRowHistory(c)).join('')}</div>`;
       return;
     }
 
     el.innerHTML = `<div class="list">${items.map(c => commitmentRow(c)).join('')}</div>`;
   }
 
+  /* ── Current month row (interactive) ── */
   function commitmentRow(c) {
     const cat     = utils.getCategory(c.category);
     const overdue = !c.paid && utils.isOverdue(c.dueDate);
@@ -134,11 +235,9 @@ window.MF.Pages.commitments = (() => {
       </div>
       <div class="list-item-right" style="align-items:flex-end;gap:var(--space-2)">
         <div class="list-item-amount">${utils.formatCurrency(c.amount)}</div>
-        <div style="display:flex;gap:var(--space-1);align-items:center">
-          <span class="badge ${c.paid ? 'badge-success' : 'badge-neutral'}">${c.paid ? '✓ Paid' : 'Unpaid'}</span>
-        </div>
-        <div class="list-item-actions" style="opacity:1;display:flex;gap:4px;margin-top:4px">
-          <button class="btn btn-sm ${c.paid ? 'btn-ghost' : 'btn-success'}" title="${c.paid ? 'Mark unpaid' : 'Mark paid'}" onclick="window.MF.Pages.commitments.togglePaid(${c.id})">
+        <span class="badge ${c.paid ? 'badge-success' : 'badge-neutral'}">${c.paid ? '✓ Paid' : 'Unpaid'}</span>
+        <div style="display:flex;gap:4px;margin-top:4px">
+          <button class="btn btn-sm ${c.paid ? 'btn-ghost' : 'btn-success'}" onclick="window.MF.Pages.commitments.togglePaid(${c.id})">
             ${c.paid ? 'Undo' : '✓ Pay'}
           </button>
           <button class="btn btn-sm btn-secondary btn-icon" title="Edit" onclick="window.MF.Pages.commitments.openForm(${c.id})">
@@ -152,9 +251,29 @@ window.MF.Pages.commitments = (() => {
     </div>`;
   }
 
+  /* ── Past month row (read-only) ── */
+  function commitmentRowHistory(c) {
+    const cat = utils.getCategory(c.category);
+    return `<div class="list-item" data-id="${c.id}">
+      <div class="list-item-icon" style="background:${cat.color}22;font-size:20px">${cat.emoji}</div>
+      <div class="list-item-content">
+        <div class="list-item-title">${utils.escape(c.title)}</div>
+        <div class="list-item-subtitle">
+          ${utils.formatDate(c.dueDate, 'medium')}
+          ${c.recurring ? '· <span class="badge badge-primary">Monthly</span>' : ''}
+        </div>
+      </div>
+      <div class="list-item-right" style="align-items:flex-end;gap:var(--space-2)">
+        <div class="list-item-amount">${utils.formatCurrency(c.amount)}</div>
+        <span class="badge ${c.paid ? 'badge-success' : 'badge-error'}">${c.paid ? '✓ Paid' : '✗ Unpaid'}</span>
+      </div>
+    </div>`;
+  }
+
+  /* ── Add / Edit form ── */
   function openForm(id) {
-    const item = id ? _items.find(c => c.id === id) : null;
-    const today = utils.todayISO();
+    const item    = id ? _items.find(c => c.id === id) : null;
+    const today   = utils.todayISO();
     const modalId = `modal-${Date.now()}`;
 
     const { modal, close } = Modal.open({
@@ -200,9 +319,9 @@ window.MF.Pages.commitments = (() => {
       const notes    = modal.querySelector('#f-notes').value.trim();
       const recurring= modal.querySelector('#f-recurring').checked;
 
-      if (!title)       { Toast.error('Title is required'); return; }
-      if (!amount || amount <= 0) { Toast.error('Enter a valid amount'); return; }
-      if (!dueDate)     { Toast.error('Due date is required'); return; }
+      if (!title)              { Toast.error('Title is required'); return; }
+      if (!amount || amount<=0){ Toast.error('Enter a valid amount'); return; }
+      if (!dueDate)            { Toast.error('Due date is required'); return; }
 
       const data = { title, amount, dueDate, category, notes, recurring, paid: item?.paid || false };
       if (item) { await DB.update('commitments', { ...item, ...data }); Toast.success('Commitment updated'); }
@@ -215,8 +334,9 @@ window.MF.Pages.commitments = (() => {
     modal.querySelector('#f-title').addEventListener('keydown', e => { if (e.key === 'Enter') modal.querySelector('#f-save').click(); });
   }
 
+  /* ── Toggle paid (current month only) ── */
   async function togglePaid(id) {
-    const item = _items.find(c => c.id === id);
+    const item   = _items.find(c => c.id === id);
     if (!item) return;
     const nowPaid = !item.paid;
     await DB.update('commitments', { ...item, paid: nowPaid, paidMonth: nowPaid ? utils.monthISO(0) : null });
@@ -224,6 +344,7 @@ window.MF.Pages.commitments = (() => {
     await loadData();
   }
 
+  /* ── Delete ── */
   async function deleteItem(id) {
     const item = _items.find(c => c.id === id);
     if (!item) return;
@@ -244,5 +365,5 @@ window.MF.Pages.commitments = (() => {
 
   function setSort(s) { _sort = s; renderList(); }
 
-  return { render, openForm, togglePaid, deleteItem, setFilter, setSort };
+  return { render, openForm, togglePaid, deleteItem, setFilter, setSort, prevMonth, nextMonth };
 })();
